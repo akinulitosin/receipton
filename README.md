@@ -99,10 +99,62 @@ The Python script adds:
 
 ## Requirements
 
-- `bash` 4+ and `curl` — for `scripts/receipt.sh` (zero deps beyond)
-- `python3` 3.8+ and `pip install web3 requests` — for `scripts/receipt.py`
-- `pip install qrcode[pil]` — only if you want the QR code in HTML output
-- Internet access to `https://api.coingecko.com` — for the USD estimate (the script falls back to "USD value unavailable" if blocked)
+### Runtime
+
+| Tool | Version | Required by | Notes |
+|---|---|---|---|
+| `bash` | 4+ | `scripts/receipt.sh` | shell interpreter |
+| `curl` | any | `scripts/receipt.sh` | for the JSON-RPC calls |
+| `python3` | 3.8+ | `scripts/receipt.py` | interpreter |
+| `cast` / `forge` | any | (optional) | for the underlying Pharos Agent Kit — not required to run the scripts directly |
+
+### Python packages (only for `receipt.py`)
+
+```bash
+pip install web3 requests
+# Optional, for the QR code in HTML output:
+pip install qrcode[pil]
+```
+
+The bash script needs **none** of these.
+
+### Network access
+
+| Endpoint | Why | Fallback if blocked |
+|---|---|---|
+| `https://rpc.pharos.xyz` (mainnet) | fetch the tx + receipt + block | none — the skill is read-only against the chain |
+| `https://atlantic.dplabs-internal.com` (testnet) | same, for testnet | none |
+| `https://api.coingecko.com` (Python script only) | historical USD price | the script falls back to `"unavailable"` rather than failing |
+
+## Framework compatibility
+
+| Framework | Compatible? | How to use |
+|---|---|---|
+| Pharos Agent Center (official) | ✅ yes | drop `SKILL.md` into `~/.pharos/skills/receipton/` — the agent will pick it up automatically |
+| Claude Code | ✅ yes | drop `SKILL.md` into `~/.claude/skills/` |
+| Codex | ✅ yes | drop `SKILL.md` into `~/.codex/skills/` |
+| OpenClaw | ✅ yes | drop into the global skills directory or use `npx skills add https://github.com/akinulitosin/receipton` |
+| Raw CLI / cron | ✅ yes | `bash scripts/receipt.sh 0x...` or `python3 scripts/receipt.py 0x...` — no agent needed |
+| Any agent that reads SKILL.md | ✅ yes | the skill description triggers on "receipt", "audit", "tax", "invoice" |
+
+## Tests
+
+```bash
+# 9 format tests, no network required
+python3 tests/test_format.py
+
+# (output)
+#   ✓ test_md_invoice_has_all_fields
+#   ✓ test_md_donation_appends_thankyou
+#   ✓ test_md_audit_appends_json
+#   ✓ test_md_tax_appends_8949_hint
+#   ✓ test_txt_invoice_has_all_fields
+#   ✓ test_html_invoice_has_table_and_styles
+#   ✓ test_html_invoice_inlines_qr_when_provided
+#   ✓ test_html_failed_status_uses_fail_class
+#   ✓ test_all_templates_render_without_exception
+# 9 test(s) passed
+```
 
 ## License
 
