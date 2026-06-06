@@ -1,8 +1,8 @@
 # receipton
 
-An on-chain receipt generator for the [Pharos Agent Center](https://www.pharos.xyz/agent-center). Given any Pharos transaction hash, produces a printable, audit-ready receipt in Markdown, plain text, or self-contained HTML — including a QR code encoding the hash, the USD value at execution time, the gas breakdown, and a link to the explorer.
+An on-chain receipt generator for the [Pharos Network](https://pharos.xyz). Given any Pharos transaction hash, produces a printable, audit-ready receipt in Markdown, plain text, or self-contained HTML — including a QR code encoding the hash, the USD value at execution time, the gas breakdown, and a link to the explorer.
 
-Use it for **invoices, donation receipts, audit-log entries, and tax exports** of any Pharos transaction.
+Use it for **invoices, donation receipts, audit-log entries, and tax exports** of any Pharos transaction. Ships as a [Pharos Agent Center](https://www.pharos.xyz/agent-center) skill — drop it into Claude / Codex / OpenClaw and the agent can produce receipts on demand.
 
 ## What you get
 
@@ -21,7 +21,66 @@ A receipt is a single document containing:
 | Explorer link | `references/networks.json` |
 | QR code (PNG, base64-inlined in HTML) | hash → QR |
 
+## Install
+
+Pick **one** of the two install methods below.
+
+### Option A — Clone the repo (for direct CLI use, forking, or self-hosting)
+
+```bash
+# 1. Clone
+git clone https://github.com/akinulitosin/receipton.git
+cd receipton
+chmod +x scripts/receipt.sh scripts/receipt_demo.sh
+
+# 2. Make scripts callable from anywhere
+ln -s "$(pwd)/scripts/receipt.sh" /usr/local/bin/receipton
+# (now you can run `receipton 0xYOUR_TX` from any directory)
+
+# 3. (Optional) Python deps for the QR + USD version
+pip install web3 requests
+pip install qrcode[pil]   # only if you want the QR code in HTML output
+
+# 4. (Optional) Install as a Pharos Agent Center / Claude Code / Codex / OpenClaw skill
+mkdir -p ~/.pharos/skills
+cp -r . ~/.pharos/skills/receipton
+# (or: ~/.claude/skills/, ~/.codex/skills/ — same recipe)
+```
+
+### Option B — One-line via the OpenClaw registry
+
+```bash
+npx skills add https://github.com/akinulitosin/receipton
+```
+
+That's it. No build step, no compile. The skill is pure bash + Python.
+
+### Verify the install
+
+```bash
+# 1. The zero-dep version needs only bash + curl
+bash scripts/receipt.sh --help
+
+# 2. The Python version needs web3 + requests
+python3 scripts/receipt.py --help
+
+# 3. The format tests should all pass
+python3 tests/test_format.py
+#   ✓ test_md_invoice_has_all_fields
+#   ✓ test_md_donation_appends_thankyou
+#   ✓ test_md_audit_appends_json
+#   ✓ test_md_tax_appends_8949_hint
+#   ✓ test_txt_invoice_has_all_fields
+#   ✓ test_html_invoice_has_table_and_styles
+#   ✓ test_html_invoice_inlines_qr_when_provided
+#   ✓ test_html_failed_status_uses_fail_class
+#   ✓ test_all_templates_render_without_exception
+# 9 test(s) passed
+```
+
 ## Quick start
+
+Once installed (any of the methods above):
 
 ### Zero-dependency version (bash + curl only)
 
