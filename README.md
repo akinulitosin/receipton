@@ -2,7 +2,7 @@
 
 An on-chain receipt generator for the [Pharos Network](https://pharos.xyz). Given any Pharos transaction hash, produces a printable, audit-ready receipt in Markdown, plain text, or self-contained HTML — including a QR code encoding the hash, the USD value at execution time, the gas breakdown, and a link to the explorer.
 
-Use it for **invoices, donation receipts, audit-log entries, and tax exports** of any Pharos transaction. Ships as a [Pharos Agent Center](https://www.pharos.xyz/agent-center) skill — drop it into Claude / Codex / OpenClaw and the agent can produce receipts on demand.
+Use it for **invoices, donation receipts, audit-log entries, and tax exports** of any Pharos transaction. Install it once and your agent can call `bash scripts/receipt.sh 0xYOUR_TX` from any session — works with Claude Code, Codex, OpenClaw, and the Pharos Agent Center, no agent required for CLI use.
 
 ## What you get
 
@@ -189,7 +189,7 @@ The bash script needs **none** of these.
 
 | Framework | Compatible? | How to use |
 |---|---|---|
-| Pharos Agent Center (official) | ✅ yes | drop `SKILL.md` into `~/.pharos/skills/receipton/` — the agent will pick it up automatically |
+| Pharos Agent Center | ✅ yes | `cp -r . ~/.pharos/skills/receipton` (or symlink) |
 | Claude Code | ✅ yes | drop `SKILL.md` into `~/.claude/skills/` |
 | Codex | ✅ yes | drop `SKILL.md` into `~/.codex/skills/` |
 | OpenClaw | ✅ yes | drop into the global skills directory or use `npx skills add https://github.com/akinulitosin/receipton` |
