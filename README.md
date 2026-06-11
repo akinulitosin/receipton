@@ -78,6 +78,67 @@ python3 tests/test_format.py
 # 9 test(s) passed
 ```
 
+
+## Quick test (try it in 30 seconds)
+
+After the 3-step install above, run the demo mode (no private key, no RPC, no setup):
+
+```bash
+bash scripts/receipt_demo.sh
+```
+
+You should see a printable receipt printed to your terminal. The demo uses synthetic data, so it works offline.
+
+To run a real check on a Pharos transaction, replace the placeholder:
+
+```bash
+bash scripts/receipt.sh 0xYOUR_TX_HASH
+```
+
+## Use in an AI agent (Claude Code / Codex / OpenClaw / Pharos Agent Center)
+
+The skill ships with a `SKILL.md` that AI agents auto-load. Once installed in your agent, just ask in natural language — the agent will read `SKILL.md` and run the bash script for you.
+
+```text
+"Show me a receipt for Pharos tx 0xabc..."
+```
+
+The agent will run the script and read the receipt back to you.
+
+### Install in your agent
+
+**Option A — Pharos Agent Center** (one-line install):
+
+```bash
+pharos-skill install https://github.com/akinulitosin/receipton
+```
+
+**Option B — OpenClaw / Claude Code / Codex** (one-line via npm):
+
+```bash
+npx skills add https://github.com/akinulitosin/receipton
+```
+
+**Option C — Manual install** (drop into your agent's skills directory):
+
+```bash
+git clone https://github.com/akinulitosin/receipton
+cd receipton
+
+# Claude Code:
+mkdir -p ~/.claude/skills/receipton
+cp -r . ~/.claude/skills/receipton/
+
+# Codex:
+mkdir -p ~/.codex/skills/receipton
+cp -r . ~/.codex/skills/receipton/
+
+# OpenClaw:
+mkdir -p ~/.openclaw/skills/receipton
+cp -r . ~/.openclaw/skills/receipton/
+```
+
+Then restart the agent — the skill will be auto-loaded.
 ## Quick start
 
 Once installed (any of the methods above):
