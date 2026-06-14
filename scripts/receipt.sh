@@ -44,7 +44,7 @@ if [ "$PRINT_HELP" = "1" ]; then
 Usage: bash scripts/receipt.sh <TX_HASH> [flags]
 
 Flags:
-  --network mainnet|testnet    Default: testnet
+  --network mainnet|testnet    Default: mainnet
   --format  md|txt|html         Default: md
   --template invoice|donation|audit|tax   Default: invoice
 
@@ -80,7 +80,7 @@ get_num() {
     | grep -E "\"$field\":" | head -1 | grep -oE '[0-9]+' | head -1
 }
 
-NET="${NETWORK_OVERRIDE:-testnet}"
+NET="${NETWORK_OVERRIDE:-mainnet}"
 case "$NET" in
   testnet|atlantic|atlantic-testnet) NET_KEY="atlantic-testnet" ;;
   mainnet|pacific|pacific-mainnet)   NET_KEY="mainnet" ;;
@@ -99,6 +99,12 @@ RECEIPT=$(curl -s -X POST "$RPC_URL" -H "Content-Type: application/json" \
 
 if [ -z "$RECEIPT" ] || echo "$RECEIPT" | grep -q '"result":null'; then
   echo "❌ Transaction $TX_HASH not found on $DISPLAY_NAME (chain $CHAIN_ID)."
+  echo ""
+  echo "  Possible causes:"
+  echo "    - the tx hash is wrong (double-check it)"
+  echo "    - the tx is on a different chain (try --network testnet if it was on testnet, or --network mainnet if it was on mainnet)"
+  echo "    - the RPC is rate-limited or down (try again in a moment)"
+  echo "    - the tx is very old and the public RPC has pruned its history"
   exit 1
 fi
 
