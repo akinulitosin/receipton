@@ -1,111 +1,127 @@
 ---
 name: receipton
-description: Generates a one-page on-chain receipt for any Pharos transaction hash. Given a tx hash, the skill produces a printable, audit-ready receipt containing: from, to, value, gas used, gas price, USD-equivalent value at execution time, the block number, timestamp, and an explorer link — plus a QR code encoding the hash for paper trails. Output formats: Markdown, plain text, and self-contained HTML. Templates: invoice, donation receipt, audit-log entry, tax-export. Use whenever the user asks for a receipt, a record, an audit-log entry, a tax export, or a printable proof of any Pharos transaction.
-version: 1.0.0
+description: AI agent skill that generates a Markdown / plain-text / HTML receipt for any Pharos transaction. Takes a tx hash + network, fetches the receipt and tx via JSON-RPC, and renders a clean receipt with native, gas, fee, nonce, input selector, and explorer link. Supports 4 templates: invoice, donation, audit, tax. Use this skill whenever an agent needs to make a receipt, confirm a payment, or produce an audit-friendly record of an on-chain transaction. Triggers on phrases like "make a receipt for tx", "confirm payment", "transaction record", "audit report for tx", "pharos receipt", "tax cost basis".
+version: 2.0.0
 author: akinulitosin
-tags: [pharos, receipts, audit, tax, accounting, transactions, defi, mainnet, testnet]
-agents: [claude, codex, openclaw, gemini]
+requires: read
+bins: [bash, curl, sed, grep, awk]
+network: pharos
+tags: [receipt, invoice, audit, tax, pharos, transaction, erc-20, native]
+agents: [claude, codex, gemini, openclaw]
 ---
 
-# receipton — On-chain Receipt Generator
+# Pharos On-Chain Receipt Generator
 
-You are a receipt-generation skill for the Pharos network. Given any Pharos transaction hash, you produce a clean, audit-ready receipt in Markdown, plain text, or self-contained HTML.
+A bash + curl (JSON-RPC) skill that generates a Markdown / plain-text / HTML receipt for any Pharos transaction. Takes a tx hash + network, fetches the receipt and tx, and renders a clean receipt with native, gas, fee, nonce, input selector, and explorer link.
 
-## When to use
+## Quick Actions
 
-Trigger this skill whenever the user asks for:
-
-- "give me a receipt for this tx"
-- "print the transaction details"
-- "make an invoice from this hash"
-- "I need a tax record of this transfer"
-- "audit log entry for hash 0x..."
-- "donation receipt for 0x..."
-- "I need a paper trail of this payment"
-
-Do NOT use this skill for:
-
-- Debugging a failed transaction (use `pharos-contract-debugger` instead)
-- Resolving a name (use the PNS wrapper)
-- Sending a new transaction (use the Agent Kit's `cast send`)
-
-## Network details
-
-- **Atlantic Testnet** (default): chain ID `688689`, native `PHRS`, RPC `https://atlantic.dplabs-internal.com`, explorer `https://atlantic.pharosscan.xyz`
-- **Pacific Mainnet**: chain ID `1672`, native `PROS`, RPC `https://rpc.pharos.xyz`, explorer `https://www.pharosscan.xyz`
-
-Read both from `references/networks.json` so URLs and chain IDs never go stale.
-
-## How to generate a receipt
-
-### Zero-dependency (bash + curl only)
-
-```bash
-bash scripts/receipt.sh <TX_HASH> [--network mainnet|testnet] [--format md|txt|html] [--template invoice|donation|audit|tax]
+### Generate a Markdown receipt
+```
+Make a receipt for transaction 0xabc...def on Pharos mainnet
 ```
 
-### Richer output with QR + USD estimate (Python)
-
-```bash
-pip install web3 qrcode[pil] requests
-python3 scripts/receipt.py <TX_HASH> --network mainnet --format html --template invoice
+### Generate an HTML donation receipt
+```
+Make an HTML donation receipt for tx 0xabc...def on Pharos mainnet
 ```
 
-Both scripts fetch the transaction and its receipt from the live Pharos RPC, look up the USD-equivalent value at the time of execution (via CoinGecko's historical price endpoint), and render the receipt.
+### Generate an audit report (with JSON appendix)
+```
+Generate an audit report (with JSON appendix) for tx 0xabc...def
+```
 
-## Receipt fields
+## Invocation
 
-Every receipt includes:
+```bash
+# Default: Markdown invoice on mainnet
+bash scripts/receipt.sh 0xYOUR_TX_HASH
 
-| Field | Source |
+# HTML donation receipt
+bash scripts/receipt.sh 0xYOUR_TX_HASH --format html --template donation
+
+# Audit report (with JSON appendix)
+bash scripts/receipt.sh 0xYOUR_TX_HASH --template audit
+
+# Tax cost-basis report
+bash scripts/receipt.sh 0xYOUR_TX_HASH --format txt --template tax
+```
+
+## Flags
+
+| Flag | Description |
 |---|---|
-| Transaction hash | input |
-| Network name + chain ID | `references/networks.json` |
-| Status (success / failed) | `receipt.status` |
-| Block number + timestamp | `receipt.blockNumber` + `eth_getBlockByNumber` |
-| From address | `tx.from` |
-| To address / contract created | `tx.to` (or `receipt.contractAddress` for creations) |
-| Value (native) | `tx.value` |
-| Gas used | `receipt.gasUsed` |
-| Gas price (effective) | `receipt.effectiveGasPrice` |
-| Tx fee | `gasUsed × effectiveGasPrice` |
-| Native token price at execution (USD) | CoinGecko historical |
-| USD value of transfer | `value × price` |
-| USD value of fee | `fee × price` |
-| Nonce | `tx.nonce` |
-| Input data (first 4 bytes = function selector) | `tx.input` |
-| Explorer link | `net.explorer + "tx/" + hash` |
-| QR code (PNG, base64-inlined in HTML output) | hash → QR |
+| `0xTX_HASH` | Transaction hash to receipt-ify (positional, required) |
+| `--network mainnet \| testnet` | Pharos chain (default: testnet) |
+| `--format md \| txt \| html` | Output format (default: md) |
+| `--template invoice \| donation \| audit \| tax` | Receipt template (default: invoice) |
+| `-h`, `--help` | Show the help text |
 
-## Output templates
+## Templates
 
-| Template | When to use |
+| Template | What it adds |
 |---|---|
-| `invoice` | Default. Clean two-column layout, suitable for freelancers + DAOs |
-| `donation` | Adds a "received from" line + a thank-you signature block |
-| `audit` | Adds JSON appendix + raw field dump for compliance teams |
-| `tax` | Adds cost-basis fields (USD at receipt, USD at time-of-tx, delta) + 8949-style column hints |
+| `invoice` (default) | Standard receipt: network, status, block, from, to, value, gas, fee, nonce, input selector, explorer link |
+| `donation` | Adds a "Thank you" line and receipt ID for contribution tracking |
+| `audit` | Adds a machine-readable JSON appendix with every field |
+| `tax` | Adds a cost-basis appendix with date acquired, USD proceeds placeholder, and Form 8949 hints |
 
-Default if unspecified: `invoice`.
+## Networks
 
-## Output formats
+| Network | Chain ID | RPC URL | Default |
+|---|---:|---|:---:|
+| mainnet (Pacific Ocean) | 1672 | `https://rpc.pharos.xyz` | |
+| atlantic-testnet | 688689 | `https://atlantic.dplabs-internal.com` | ✓ |
 
-| Format | What you get |
-|---|---|
-| `md` (default) | One-page Markdown. Pastable into Notion, GitHub, Slack, email. |
-| `txt` | Plain text. No Markdown. Terminal-friendly, audit-log friendly. |
-| `html` | Self-contained HTML with inline CSS + base64 QR PNG. Open in a browser, print to PDF. |
+Chain config is read from `references/networks.json` at startup.
 
-## Safety reminders
+## Dependencies
 
-- Never log or echo `$PRIVATE_KEY`. Receipt generation is read-only — the scripts do not need a key.
-- For tax exports, warn the user that the on-chain USD value is computed from the *execution-time* token price, not the *reporting-time* price. Always re-check before filing.
-- The skill does NOT validate that the user owns the wallet. Anyone with a tx hash can request a receipt.
+- **bash 4+** — preinstalled on macOS, Ubuntu 20+, most Linux
+- **curl** — preinstalled on most systems
+- **POSIX utilities** — `sed`, `grep`, `awk`, `printf`
+- **(Optional)** Foundry — not used by the bash engine but `foundry.toml` is shipped for Agent Center compatibility
 
-## References
+## Security model
 
-- `references/networks.json` — canonical Pharos network config
-- `references/format.md` — receipt field reference + template schemas
-- `references/price-feeds.md` — how USD prices are sourced, rate limits, fallback strategy
-- `examples/sample-receipt.md` — Markdown output example
-- `examples/sample-receipt.html` — HTML output example (with QR)
+- The skill is **read-only** — it never imports, reads, or stores a private key.
+- It reads tx receipts and tx data via `eth_getTransactionReceipt` / `eth_getTransactionByHash` (read-only RPC).
+- It never submits a transaction, never writes to disk (output goes to stdout).
+- The only network call is to the user-configured RPC URL.
+
+## Error handling
+
+- Missing tx hash → usage hint + exit 1
+- Bad tx hash format → no validation (JSON-RPC will return null)
+- tx not found → "Transaction 0x... not found on $NETWORK"
+- Unknown flag → "Unknown flag: X"
+- Bad format → "Invalid format: X (use md|txt|html)"
+- Bad template → "Invalid template: X (use invoice|donation|audit|tax)"
+- Bad network → "Unknown network: X"
+
+## Reference docs
+
+- `references/format.md` — the field set rendered in each template
+- `examples/sample-receipt.html` / `examples/sample-receipt.md` — annotated examples
+
+## Repository layout
+
+```
+receipton/
+├── SKILL.md              # This file
+├── README.md             # Full documentation
+├── foundry.toml          # Foundry config (for Agent Center compatibility)
+├── LICENSE               # MIT
+├── assets/
+│   └── networks.json
+├── references/
+│   ├── format.md
+│   └── price-feeds.md
+├── examples/
+│   ├── sample-receipt.html
+│   └── sample-receipt.md
+├── scripts/
+│   └── receipt.sh        # The single bash script that does the work
+└── tests/
+    └── test_receipt_smoke.sh
+```

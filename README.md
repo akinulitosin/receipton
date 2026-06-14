@@ -1,281 +1,232 @@
-# receipton
+# Pharos On-Chain Receipt Generator
 
-An on-chain receipt generator for the [Pharos Network](https://pharos.xyz). Given any Pharos transaction hash, produces a printable, audit-ready receipt in Markdown, plain text, or self-contained HTML — including a QR code encoding the hash, the USD value at execution time, the gas breakdown, and a link to the explorer.
+> Generate a Markdown / plain-text / HTML receipt for any Pharos transaction, with native, gas, fee, and explorer link.
 
-Use it for **invoices, donation receipts, audit-log entries, and tax exports** of any Pharos transaction. Install it once and your agent can call `bash scripts/receipt.sh 0xYOUR_TX` from any session — works with Claude Code, Codex, OpenClaw, and the Pharos Agent Center, no agent required for CLI use.
+[![foundry](https://img.shields.io/badge/built%20with-Foundry-orange)]()
+[![bash](https://img.shields.io/badge/script-bash-blue)]()
+[![license](https://img.shields.io/badge/license-MIT-green)]()
+[![pharos](https://img.shields.io/badge/network-Pharos-blueviolet)]()
+[![ai-agent](https://img.shields.io/badge/callable%20by-AI%20agent-purple)]()
 
-## What you get
+## What it is
 
-A receipt is a single document containing:
+This is a **skill built for the Pharos network** — a self-contained, deterministic bash script that runs on top of the [Pharos](https://pharos.network) EVM chains. It is **not** an AI agent itself, and not a chatbot. It is a single bash script that:
 
-| Field | Where it comes from |
-|---|---|
-| Transaction hash + status | Pharos RPC |
-| Network + chain ID | `references/networks.json` |
-| Block number + timestamp | `eth_getBlockByNumber` |
-| From / to addresses | RPC |
-| Value (native) | RPC |
-| Gas used, effective gas price, fee | RPC |
-| USD value at execution time | CoinGecko historical price |
-| Function selector (first 4 bytes of input) | RPC |
-| Explorer link | `references/networks.json` |
-| QR code (PNG, base64-inlined in HTML) | hash → QR |
+- takes input from the caller via CLI flags,
+- reads live on-chain data from Pharos via JSON-RPC,
+- renders a clean receipt (Markdown, text, or HTML) to stdout.
+
+Takes a transaction hash + network, fetches the receipt and tx via JSON-RPC, and renders a clean receipt in one of three formats (Markdown, text, or HTML) with one of four templates (invoice, donation, audit, tax). Reads live data from Pharos mainnet (chain 1672) or Atlantic testnet (chain 688689) via the chain config in `references/networks.json`. Output is self-contained — no external CSS, no JS, just a single HTML file with inline styles. The audit template adds a machine-readable JSON appendix; the tax template adds an IRS Form 8949 cost-basis appendix.
+
+## Use it from an AI agent
+
+This skill is designed to be **called by an AI agent** (a Claude Code / Codex / Cursor agent, the Pharos Agent Center, or any custom LLM agent). The agent reads `SKILL.md` to discover the skill's flags, fills them in based on the user's request, and runs the bash script in its sandbox. The agent's job is just to translate "make a receipt for tx 0xabc" into `bash scripts/receipt.sh 0xabc`.
+
+Typical agent-side flow:
+
+```text
+User -> Agent: "Make a receipt for tx 0xabc...def on Pharos mainnet"
+Agent -> looks up SKILL.md for Pharos On-Chain Receipt Generator
+Agent -> runs: bash scripts/receipt.sh 0xabc...def
+Agent -> reads the rendered output and presents it to the user
+```
+
+The script prints structured output to stdout, so the agent can pipe it directly to the user or write it to a file.
 
 ## Install
 
-Pick **one** of the two install methods below.
-
-### Option A — Clone the repo (for direct CLI use, forking, or self-hosting)
+You need two things: **`bash` 4+** and **`git`** to clone the repo. The script uses standard POSIX utilities (curl, sed, grep, awk) and a Foundry cast is available if you need it.
 
 ```bash
-# 1. Clone
 git clone https://github.com/akinulitosin/receipton.git
 cd receipton
-chmod +x scripts/receipt.sh scripts/receipt_demo.sh
-
-# 2. Make scripts callable from anywhere
-ln -s "$(pwd)/scripts/receipt.sh" /usr/local/bin/receipton
-# (now you can run `receipton 0xYOUR_TX` from any directory)
-
-# 3. (Optional) Python deps for the QR + USD version
-pip install web3 requests
-pip install qrcode[pil]   # only if you want the QR code in HTML output
-
-# 4. (Optional) Install as a Pharos Agent Center / Claude Code / Codex / OpenClaw skill
-mkdir -p ~/.pharos/skills
-cp -r . ~/.pharos/skills/receipton
-# (or: ~/.claude/skills/, ~/.codex/skills/ — same recipe)
+chmod +x scripts/*.sh tests/*.sh
 ```
 
-### Option B — One-line via the OpenClaw registry
+## Quick test (30 seconds, no API keys needed)
 
 ```bash
-npx skills add https://github.com/akinulitosin/receipton
-```
-
-That's it. No build step, no compile. The skill is pure bash + Python.
-
-### Verify the install
-
-```bash
-# 1. The zero-dep version needs only bash + curl
 bash scripts/receipt.sh --help
-
-# 2. The Python version needs web3 + requests
-python3 scripts/receipt.py --help
-
-# 3. The format tests should all pass
-python3 tests/test_format.py
-#   ✓ test_md_invoice_has_all_fields
-#   ✓ test_md_donation_appends_thankyou
-#   ✓ test_md_audit_appends_json
-#   ✓ test_md_tax_appends_8949_hint
-#   ✓ test_txt_invoice_has_all_fields
-#   ✓ test_html_invoice_has_table_and_styles
-#   ✓ test_html_invoice_inlines_qr_when_provided
-#   ✓ test_html_failed_status_uses_fail_class
-#   ✓ test_all_templates_render_without_exception
-# 9 test(s) passed
 ```
 
-
-## Quick test (try it in 30 seconds)
-
-After the 3-step install above, run the demo mode (no private key, no RPC, no setup):
-
-```bash
-bash scripts/receipt_demo.sh
-```
-
-You should see a printable receipt printed to your terminal. The demo uses synthetic data, so it works offline.
-
-To run a real check on a Pharos transaction, replace the placeholder:
-
-```bash
-bash scripts/receipt.sh 0xYOUR_TX_HASH
-```
-
-## Use in an AI agent (Claude Code / Codex / OpenClaw / Pharos Agent Center)
-
-The skill ships with a `SKILL.md` that AI agents auto-load. Once installed in your agent, just ask in natural language — the agent will read `SKILL.md` and run the bash script for you.
-
-```text
-"Show me a receipt for Pharos tx 0xabc..."
-```
-
-The agent will run the script and read the receipt back to you.
-
-### Install in your agent
-
-**Option A — Pharos Agent Center** (one-line install):
-
-```bash
-pharos-skill install https://github.com/akinulitosin/receipton
-```
-
-**Option B — OpenClaw / Claude Code / Codex** (one-line via npm):
-
-```bash
-npx skills add https://github.com/akinulitosin/receipton
-```
-
-**Option C — Manual install** (drop into your agent's skills directory):
-
-```bash
-git clone https://github.com/akinulitosin/receipton
-cd receipton
-
-# Claude Code:
-mkdir -p ~/.claude/skills/receipton
-cp -r . ~/.claude/skills/receipton/
-
-# Codex:
-mkdir -p ~/.codex/skills/receipton
-cp -r . ~/.codex/skills/receipton/
-
-# OpenClaw:
-mkdir -p ~/.openclaw/skills/receipton
-cp -r . ~/.openclaw/skills/receipton/
-```
-
-Then restart the agent — the skill will be auto-loaded.
-## Quick start
-
-Once installed (any of the methods above):
-
-### Zero-dependency version (bash + curl only)
+## Usage
 
 ```bash
 # Default: Markdown invoice on mainnet
-bash scripts/receipt.sh 0x9606bcfd027b28e6783ca8b5fef1c3311476a1c30e5bf4464d0340a0d24ba7f7
+bash scripts/receipt.sh 0xYOUR_TX_HASH
 
-# Pick a network + format + template
-bash scripts/receipt.sh 0xYOUR_TX --network testnet --format html --template donation
+# HTML donation receipt on mainnet
+bash scripts/receipt.sh 0xYOUR_TX_HASH --format html --template donation
+
+# Markdown audit report on testnet (with JSON appendix)
+bash scripts/receipt.sh 0xYOUR_TX_HASH --network testnet --template audit
+
+# Plain-text tax cost-basis on mainnet
+bash scripts/receipt.sh 0xYOUR_TX_HASH --format txt --template tax
 ```
 
-No `cast`, no `jq`, no Python. The bash script does everything with `curl` + `printf`.
+### All flags
 
-### Richer version (Python, with QR + USD)
-
-```bash
-pip install web3 requests
-# Optional but recommended for the QR code:
-pip install qrcode[pil]
-
-python3 scripts/receipt.py 0xYOUR_TX --network mainnet --format html --template invoice
+```
+0xTX_HASH --network mainnet|testnet --format md|txt|html --template invoice|donation|audit|tax
 ```
 
-The Python script adds:
-- A real QR code (PNG, base64-embedded in HTML output)
-- A historical USD price lookup via CoinGecko
-- A cost-basis / 8949-style appendix for the `tax` template
-- Cleaner Markdown for `md` output
+| Flag | Description |
+|---|---|
+| `0xTX_HASH` | The transaction hash to receipt-ify (positional, required) |
+| `--network mainnet \| testnet` | Pharos chain (default: testnet) |
+| `--format md \| txt \| html` | Output format (default: md) |
+| `--template invoice \| donation \| audit \| tax` | Receipt template (default: invoice) |
+| `-h`, `--help` | Show the help text |
 
 ## Templates
 
-| Template | Use case |
+| Template | What it adds |
 |---|---|
-| `invoice` (default) | Freelancers, DAOs, payments to contractors |
-| `donation` | Charities, grants, treasury outflows to non-profits |
-| `audit` | Compliance teams, on-chain forensics, regulatory archive |
-| `tax` | US tax export, 8949-style cost-basis reporting |
-
-## Output formats
-
-| Format | What it is |
-|---|---|
-| `md` (default) | One-page Markdown. Pastable into Notion / GitHub / Slack / email. |
-| `txt` | Plain text. Terminal-friendly, appendable to audit logs. |
-| `html` | Self-contained HTML with inline CSS + base64 QR PNG. Browser-printable to PDF. |
+| `invoice` (default) | Standard receipt: network, status, block, from, to, value, gas, fee, nonce, input selector, explorer link |
+| `donation` | Adds a "Thank you" line and receipt ID for contribution tracking |
+| `audit` | Adds a machine-readable JSON appendix with every field (audit-friendly) |
+| `tax` | Adds a cost-basis appendix with date acquired, USD proceeds placeholder, and Form 8949 hints |
 
 ## Networks
 
-| Network | Chain ID | Native | RPC | Explorer |
-|---|---:|---|---|---|
-| Pharos Atlantic Testnet | 688689 | PHRS | `https://atlantic.dplabs-internal.com` | https://atlantic.pharosscan.xyz |
-| Pharos Pacific Ocean Mainnet | 1672 | PROS | `https://rpc.pharos.xyz` | https://www.pharosscan.xyz |
+The skill is built to run against the Pharos EVM chains. The chain config is stored in `references/networks.json` and read at startup — no hardcoded URLs in the script.
+
+| Network | Chain ID | RPC URL | Default |
+|---|---:|---|:---:|
+| mainnet (Pacific Ocean) | 1672 | `https://rpc.pharos.xyz` | |
+| atlantic-testnet | 688689 | `https://atlantic.dplabs-internal.com` | ✓ |
+
+The script defaults to testnet (since the bash engine doesn't sign or broadcast, you can run it freely on either). Pass `--network mainnet` to use mainnet.
+
+## Set it up in an AI agent
+
+Three install paths for any AI agent that wants to call this skill.
+
+### Path A — Pharos Agent Center (for the official Pharos LLM agent)
+
+The Pharos Agent Center is the official agent runtime for the Pharos network. It reads `SKILL.md` from any skill repo to discover capabilities, dependencies, and required flags.
+
+1. **Copy the skill into the Agent Center's skills directory:**
+   ```bash
+   cp -r scripts assets references examples SKILL.md README.md foundry.toml LICENSE \
+     ~/.pharos/agent-center/skills/receipton/
+   ```
+
+2. **Reload the Agent Center's skill registry:**
+   ```bash
+   pharos-agent reload-skills
+   ```
+
+3. **Invoke from the agent's chat UI:**
+   ```text
+   User: "Generate a receipt for transaction 0xabc...def on Pharos mainnet"
+   Agent Center: loads Pharos On-Chain Receipt Generator, runs:
+     bash ~/.pharos/agent-center/skills/receipton/scripts/receipt.sh 0xTX_HASH --network mainnet
+   ```
+
+### Path B — `npx skills add` (for Claude Code, Cursor, Codex, generic MCP agents)
+
+```bash
+npx skills add https://github.com/akinulitosin/receipton --skill receipton
+```
+
+### Path C — Manual copy (any agent that reads `~/.claude/skills/`)
+
+```bash
+mkdir -p ~/.claude/skills/receipton
+cp -r scripts assets references examples SKILL.md README.md foundry.toml LICENSE ~/.claude/skills/receipton/
+```
+
+### Path D — Direct invocation (shell agents, cron jobs, CI pipelines)
+
+```bash
+bash scripts/receipt.sh 0xTX_HASH --format html --template donation > receipt.html
+```
+
+### What the agent says to invoke this skill
+
+| Caller says | Script invocation |
+|---|---|
+| Receipt for tx `0xabc...def` on Pharos mainnet | `bash scripts/receipt.sh 0xabc...def` |
+| HTML donation receipt for tx `0xabc...def` | `bash scripts/receipt.sh 0xabc...def --format html --template donation` |
+| Audit report (with JSON appendix) for tx `0xabc...def` | `bash scripts/receipt.sh 0xabc...def --template audit` |
+| "Show the help" | `bash scripts/receipt.sh --help` |
+
+## Security model
+
+The skill is **read-only by design**:
+
+- The script never imports, reads, or stores a private key.
+- It reads tx receipts and tx data via `eth_getTransactionReceipt` / `eth_getTransactionByHash` / `eth_getBlockByNumber` (read-only RPC).
+- It never submits a transaction, never writes to disk (output goes to stdout).
+- The only network call is to the user-configured RPC URL.
+
+## Framework
+
+| Layer | Tech | Purpose |
+|---|---|---|
+| Engine | **bash 4+** | Script host (single file per skill) |
+| RPC client | **curl + JSON-RPC** | Read-only chain reads |
+| Chain config | **JSON** (`references/networks.json`) | Network endpoints + chain IDs |
+| Renderers | **bash heredocs** | Three output formats (Markdown, text, HTML) |
+| Runtime | Any POSIX shell | Tested on Linux + macOS |
+
+## Dependencies
+
+**Required:**
+- `bash` 4+ (preinstalled on macOS, Ubuntu 20+, most Linux)
+- `curl` (preinstalled on most systems)
+- POSIX utilities: `sed`, `grep`, `awk`, `printf`
+
+**Optional:**
+- `git` — only required if you're cloning the repo (you already have it)
+
+**For Foundry-based chains (optional):** [Foundry](https://getfoundry.sh) — not used by the bash engine but `foundry.toml` is shipped for Agent Center compatibility.
+
+## Tests
+
+Each repo ships with a bash smoke test that verifies:
+1. `--help` works (no cast required)
+2. No-args shows the usage hint
+3. Unknown flags are rejected
+4. Bad format is rejected
+5. Bad template is rejected
+6. Bad network is rejected
+
+```bash
+bash tests/test_receipt_smoke.sh
+```
+
+The test runs offline by default. A live `--network mainnet` test against a real tx will make one JSON-RPC call.
+
+## Reference docs
+
+- `references/format.md` — the field set rendered in each template
+- `references/price-feeds.md` — the planned USD price feed integration (not yet shipped in the bash engine)
 
 ## Repository layout
 
 ```
-.
-├── README.md
-├── SKILL.md                          # Agent-side description
+receipton/
+├── SKILL.md              # Skill contract
+├── README.md             # This file
+├── foundry.toml          # Foundry config (for Agent Center compatibility)
+├── LICENSE               # MIT
+├── assets/
+│   └── networks.json     # mainnet + testnet chain config
 ├── references/
-│   ├── networks.json                 # Canonical Pharos config
-│   ├── format.md                     # Receipt field reference
-│   └── price-feeds.md                # How USD prices are sourced
+│   ├── format.md
+│   └── price-feeds.md
+├── examples/
+│   ├── sample-receipt.html
+│   └── sample-receipt.md
 ├── scripts/
-│   ├── receipt.sh                    # Zero-dep bash generator
-│   ├── receipt.py                    # Python generator (QR + USD)
-│   └── receipt_demo.sh               # One-shot demo with a real tx
-├── tests/
-│   ├── test_format.py                # Format tests (no network required)
-│   └── test_price_feed.py            # CoinGecko fallback tests
-└── examples/
-    ├── sample-receipt.md             # Markdown sample
-    └── sample-receipt.html           # HTML sample (with QR)
-```
-
-## Requirements
-
-### Runtime
-
-| Tool | Version | Required by | Notes |
-|---|---|---|---|
-| `bash` | 4+ | `scripts/receipt.sh` | shell interpreter |
-| `curl` | any | `scripts/receipt.sh` | for the JSON-RPC calls |
-| `python3` | 3.8+ | `scripts/receipt.py` | interpreter |
-| `cast` / `forge` | any | (optional) | for the underlying Pharos Agent Kit — not required to run the scripts directly |
-
-### Python packages (only for `receipt.py`)
-
-```bash
-pip install web3 requests
-# Optional, for the QR code in HTML output:
-pip install qrcode[pil]
-```
-
-The bash script needs **none** of these.
-
-### Network access
-
-| Endpoint | Why | Fallback if blocked |
-|---|---|---|
-| `https://rpc.pharos.xyz` (mainnet) | fetch the tx + receipt + block | none — the skill is read-only against the chain |
-| `https://atlantic.dplabs-internal.com` (testnet) | same, for testnet | none |
-| `https://api.coingecko.com` (Python script only) | historical USD price | the script falls back to `"unavailable"` rather than failing |
-
-## Framework compatibility
-
-| Framework | Compatible? | How to use |
-|---|---|---|
-| Pharos Agent Center | ✅ yes | `cp -r . ~/.pharos/skills/receipton` (or symlink) |
-| Claude Code | ✅ yes | drop `SKILL.md` into `~/.claude/skills/` |
-| Codex | ✅ yes | drop `SKILL.md` into `~/.codex/skills/` |
-| OpenClaw | ✅ yes | drop into the global skills directory or use `npx skills add https://github.com/akinulitosin/receipton` |
-| Raw CLI / cron | ✅ yes | `bash scripts/receipt.sh 0x...` or `python3 scripts/receipt.py 0x...` — no agent needed |
-| Any agent that reads SKILL.md | ✅ yes | the skill description triggers on "receipt", "audit", "tax", "invoice" |
-
-## Tests
-
-```bash
-# 9 format tests, no network required
-python3 tests/test_format.py
-
-# (output)
-#   ✓ test_md_invoice_has_all_fields
-#   ✓ test_md_donation_appends_thankyou
-#   ✓ test_md_audit_appends_json
-#   ✓ test_md_tax_appends_8949_hint
-#   ✓ test_txt_invoice_has_all_fields
-#   ✓ test_html_invoice_has_table_and_styles
-#   ✓ test_html_invoice_inlines_qr_when_provided
-#   ✓ test_html_failed_status_uses_fail_class
-#   ✓ test_all_templates_render_without_exception
-# 9 test(s) passed
+│   └── receipt.sh          # The single bash script that does the work
+└── tests/
+    └── test_receipt_smoke.sh   # Offline smoke test
 ```
 
 ## License
 
-MIT
+MIT — see `LICENSE`.
